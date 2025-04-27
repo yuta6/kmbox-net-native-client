@@ -1,0 +1,3 @@
+{
+  "python.analysis.extraPaths": ["./native-python/src"]
+}
