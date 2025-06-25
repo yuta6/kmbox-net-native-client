@@ -47,7 +47,7 @@ class Kmbox:
         # key
         self.key = list(mac_bytes)
         self.index = 0
-        self.soft_mouse = SoftMouse()
+        self.mouse_state = MouseState()
 
         # define sokect
         try:
@@ -95,54 +95,141 @@ class Kmbox:
         except CommandError as e:
             print(f"Warning:{e}")
             return False, b''
+        except Exception as e:
+            print(f"Error:{e}")
+            return False, b''
 
     def move(self, x: int, y: int) -> bool:
         """Move mouse"""
-        self.soft_mouse.x = x
-        self.soft_mouse.y = y
+        self.mouse_state.x = x
+        self.mouse_state.y = y
 
-        result, _ = self.send_cmd(CMD_MOUSE_MOVE, self.soft_mouse.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_MOVE, self.mouse_state.to_payload())
 
-        self.soft_mouse.reset_movement()
+        self.mouse_state.reset_movement()
         return result
 
     def left(self, is_down: bool) -> bool:
         """Left mouse button"""
         if is_down:
-            self.soft_mouse.button |= 0x01
+            self.mouse_state.button |= 0x01
         else:
-            self.soft_mouse.button &= ~0x01
+            self.mouse_state.button &= ~0x01
 
-        result, _ = self.send_cmd(CMD_MOUSE_LEFT, self.soft_mouse.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_LEFT, self.mouse_state.to_payload())
         return result
 
     def right(self, is_down: bool) -> bool:
         """Right mouse button"""
         if is_down:
-            self.soft_mouse.button |= 0x02
+            self.mouse_state.button |= 0x02
         else:
-            self.soft_mouse.button &= ~0x02
+            self.mouse_state.button &= ~0x02
 
-        result, _ = self.send_cmd(CMD_MOUSE_RIGHT, self.soft_mouse.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_RIGHT, self.mouse_state.to_payload())
         return result
 
     def middle(self, is_down: bool) -> bool:
         """Middle mouse button"""
         if is_down:
-            self.soft_mouse.button |= 0x04
+            self.mouse_state.button |= 0x04
         else:
-            self.soft_mouse.button &= ~0x04
+            self.mouse_state.button &= ~0x04
 
-        result, _ = self.send_cmd(CMD_MOUSE_MIDDLE, self.soft_mouse.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_MIDDLE, self.mouse_state.to_payload())
         return result
 
     def wheel(self, wheel_value: int) -> bool:
         """Mouse wheel scroll"""
-        self.soft_mouse.wheel = wheel_value
+        self.mouse_state.wheel = wheel_value
 
-        result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self.soft_mouse.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self.mouse_state.to_payload())
 
-        self.soft_mouse.wheel = 0
+        self.mouse_state.wheel = 0
+        return result
+
+    def mouse_all(self, button: int, x: int, y: int, wheel: int) -> bool:
+        """All mouse operations in one command"""
+        self.mouse_state.button = button
+        self.mouse_state.x = x
+        self.mouse_state.y = y
+        self.mouse_state.wheel = wheel
+
+        result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self.mouse_state.to_payload())
+
+        self.mouse_state.reset_movement()
+        return result
+
+    def mask_left(self, enable: bool) -> bool:
+        """Mask/unmask left mouse button"""
+        if enable:
+            self.mask_flag |= 0x01  # BIT0
+        else:
+            self.mask_flag &= ~0x01
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
+        return result
+
+    def mask_right(self, enable: bool) -> bool:
+        """Mask/unmask right mouse button"""
+        if enable:
+            self.mask_flag |= 0x02  # BIT1
+        else:
+            self.mask_flag &= ~0x02
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
+        return result
+
+    def mask_middle(self, enable: bool) -> bool:
+        """Mask/unmask middle mouse button"""
+        if enable:
+            self.mask_flag |= 0x04  # BIT2
+        else:
+            self.mask_flag &= ~0x04
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
+        return result
+
+    def mask_side1(self, enable: bool) -> bool:
+        """Mask/unmask side button 1"""
+        if enable:
+            self.mask_flag |= 0x08  # BIT3
+        else:
+            self.mask_flag &= ~0x08
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
+        return result
+
+    def mask_side2(self, enable: bool) -> bool:
+        """Mask/unmask side button 2"""
+        if enable:
+            self.mask_flag |= 0x10  # BIT4
+        else:
+            self.mask_flag &= ~0x10
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
+        return result
+
+    def mask_x(self, enable: bool) -> bool:
+        """Mask/unmask X axis movement"""
+        if enable:
+            self.mask_flag |= 0x20  # BIT5
+        else:
+            self.mask_flag &= ~0x20
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
+        return result
+
+    def mask_y(self, enable: bool) -> bool:
+        """Mask/unmask Y axis movement"""
+        if enable:
+            self.mask_flag |= 0x40  # BIT6
+        else:
+            self.mask_flag &= ~0x40
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
+        return result
+
+    def mask_wheel(self, enable: bool) -> bool:
+        """Mask/unmask mouse wheel"""
+        if enable:
+            self.mask_flag |= 0x80  # BIT7
+        else:
+            self.mask_flag &= ~0x80
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
         return result
 
     @property
@@ -164,7 +251,7 @@ class Kmbox:
         return self._monitor.is_mouse_right
 
 @dataclass
-class SoftMouse:
+class MouseState:
     button: int = 0
     x: int = 0
     y: int = 0
