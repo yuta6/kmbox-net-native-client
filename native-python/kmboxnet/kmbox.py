@@ -76,6 +76,7 @@ class Kmbox:
         self._index = 0
         self._soft_mouse = SoftMouse()
         self._soft_keyboard = SoftKeyboard()
+        self.mask_flag = 0
 
         # define sokect
         try:
