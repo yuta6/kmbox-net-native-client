@@ -1,12 +1,9 @@
 import time
 
 from kmboxnet import Kmbox
+from ip_port_uuid import IP, PORT, UUID
 
-ip=""
-port=0
-uuid=""
-
-mouse = Kmbox(ip, port, uuid)
+mouse = Kmbox(ip=IP, port=PORT, uuid=UUID)
 
 while True :
     mouse.move(150,0)
