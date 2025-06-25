@@ -2,8 +2,9 @@ import socket
 import struct
 import random
 from dataclasses import dataclass, field
+import time
 
-from .monitor import Monitor,MonitorError
+from .monitor import Monitor
 from .hidtable import HidKey
 
 CMD_CONNECT        = 0xaf3c2828
@@ -45,15 +46,14 @@ class Kmbox:
             raise ConnectionError("UUID is 8 degits.")
 
         # key
-        self.key = list(mac_bytes)
-        self.index = 0
-        self.mouse_state = MouseState()
+        self._index = 0
+        self._soft_mouse = SoftMouse()
 
         # define sokect
         try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.settimeout(self.TIMEOUT)
-            self.server_addr = (ip, port)
+            self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._sock.settimeout(self.TIMEOUT)
+            self._server_addr = (ip, port)
         except Exception as e:
             raise ConnectionError(e)
 
@@ -63,31 +63,35 @@ class Kmbox:
             raise ConnectionError("Connection failture.")
 
         # start monitor
-        self._monitor: Monitor | None = None
+        self.monitor: Monitor | None = None
         if monitor_port is not None:
             try:
-                self._monitor = Monitor(monitor_port)
-                self._monitor.start()
                 rand_override = monitor_port | (0xAA55 << 16)
-                result, _ = self.send_cmd(CMD_MONITOR, rand_override= rand_override)
-                if result is False:
-                    raise MonitorError("Monitor start failture.")
+                result, data = self.send_cmd(CMD_MONITOR, rand_override=rand_override)
+
+                if result:
+                    self.monitor = Monitor(monitor_port)
+                    self.monitor.start()
+                    time.sleep(0.01)
+                else:
+                    raise MonitorError("Device monitor setup failed")
+
             except Exception as e:
                 print(f"monitor start error: {e}")
 
     def _make_header(self, cmd: int, rand_override: int | None = None) -> bytes:
-        self.index += 1
+        self._index += 1
         if rand_override is None:
             rand_override = random.randint(0, 0x7FFFFFFF)
-        return struct.pack("<IIII", self.mac, rand_override, self.index, cmd)
+        return struct.pack("<IIII", self.mac, rand_override, self._index, cmd)
 
     def send_cmd(self, cmd: int, payload: bytes = b'', rand_override: int | None = None) -> tuple[bool, bytes]:
-        self.sock.sendto(self._make_header(cmd, rand_override) + payload, self.server_addr)
+        self._sock.sendto(self._make_header(cmd, rand_override) + payload, self._server_addr)
 
         try:
-            data, sender_addr = self.sock.recvfrom(1024)
+            data, sender_addr = self._sock.recvfrom(1024)
             _, _, resp_index, resp_cmd = struct.unpack("<IIII", data[:16])
-            if resp_cmd != cmd or resp_index != self.index or sender_addr != self.server_addr:
+            if resp_cmd != cmd or resp_index != self._index or sender_addr != self._server_addr:
                 raise CommandError("Invalid Response")
             return True, data
         except socket.timeout:
@@ -101,63 +105,63 @@ class Kmbox:
 
     def move(self, x: int, y: int) -> bool:
         """Move mouse"""
-        self.mouse_state.x = x
-        self.mouse_state.y = y
+        self._soft_mouse.x = x
+        self._soft_mouse.y = y
 
-        result, _ = self.send_cmd(CMD_MOUSE_MOVE, self.mouse_state.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_MOVE, self._soft_mouse.to_payload())
 
-        self.mouse_state.reset_movement()
+        self._soft_mouse.reset_movement()
         return result
 
     def left(self, is_down: bool) -> bool:
         """Left mouse button"""
         if is_down:
-            self.mouse_state.button |= 0x01
+            self._soft_mouse.button |= 0x01
         else:
-            self.mouse_state.button &= ~0x01
+            self._soft_mouse.button &= ~0x01
 
-        result, _ = self.send_cmd(CMD_MOUSE_LEFT, self.mouse_state.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_LEFT, self._soft_mouse.to_payload())
         return result
 
     def right(self, is_down: bool) -> bool:
         """Right mouse button"""
         if is_down:
-            self.mouse_state.button |= 0x02
+            self._soft_mouse.button |= 0x02
         else:
-            self.mouse_state.button &= ~0x02
+            self._soft_mouse.button &= ~0x02
 
-        result, _ = self.send_cmd(CMD_MOUSE_RIGHT, self.mouse_state.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_RIGHT, self._soft_mouse.to_payload())
         return result
 
     def middle(self, is_down: bool) -> bool:
         """Middle mouse button"""
         if is_down:
-            self.mouse_state.button |= 0x04
+            self._soft_mouse.button |= 0x04
         else:
-            self.mouse_state.button &= ~0x04
+            self._soft_mouse.button &= ~0x04
 
-        result, _ = self.send_cmd(CMD_MOUSE_MIDDLE, self.mouse_state.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_MIDDLE, self._soft_mouse.to_payload())
         return result
 
     def wheel(self, wheel_value: int) -> bool:
         """Mouse wheel scroll"""
-        self.mouse_state.wheel = wheel_value
+        self._soft_mouse.wheel = wheel_value
 
-        result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self.mouse_state.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self._soft_mouse.to_payload())
 
-        self.mouse_state.wheel = 0
+        self._soft_mouse.wheel = 0
         return result
 
     def mouse_all(self, button: int, x: int, y: int, wheel: int) -> bool:
         """All mouse operations in one command"""
-        self.mouse_state.button = button
-        self.mouse_state.x = x
-        self.mouse_state.y = y
-        self.mouse_state.wheel = wheel
+        self._soft_mouse.button = button
+        self._soft_mouse.x = x
+        self._soft_mouse.y = y
+        self._soft_mouse.wheel = wheel
 
-        result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self.mouse_state.to_payload())
+        result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self._soft_mouse.to_payload())
 
-        self.mouse_state.reset_movement()
+        self._soft_mouse.reset_movement()
         return result
 
     def mask_left(self, enable: bool) -> bool:
@@ -234,24 +238,24 @@ class Kmbox:
 
     @property
     def is_left(self) -> bool:
-        if not self._monitor:
+        if not self.monitor:
             raise MonitorError("monitor not configured")
-        return self._monitor.is_mouse_left
+        return self.monitor.is_mouse_left
 
     @property
     def is_middle(self) -> bool:
-        if not self._monitor:
+        if not self.monitor:
             raise MonitorError("monitor not configured")
-        return self._monitor.is_mouse_middle
+        return self.monitor.is_mouse_middle
 
     @property
     def is_right(self) -> bool:
-        if not self._monitor:
+        if not self.monitor:
             raise MonitorError("monitor not configured")
-        return self._monitor.is_mouse_right
+        return self.monitor.is_mouse_right
 
 @dataclass
-class MouseState:
+class SoftMouse:
     button: int = 0
     x: int = 0
     y: int = 0
@@ -268,7 +272,6 @@ class MouseState:
         self.y = 0
         self.wheel = 0
 
-
 class KmboxError(Exception):
     pass
 
@@ -279,4 +282,7 @@ class TimeoutError(KmboxError):
     pass
 
 class CommandError(KmboxError):
+    pass
+
+class MonitorError(KmboxError):
     pass
