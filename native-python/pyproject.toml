@@ -1,46 +1,6 @@
 [project]
-name = "kmboxnet-python-only"
+name = "kmbox-net-python"
 version = "0.1.0"
-description = "A pure kmboxnet control library with no dependencies"
-dependencies = [
-    "hidapi>=0.14.0.post4",
-]
-readme = "README.md"
-requires-python = ">= 3.8"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.rye]
-source = ["src"]
-managed = true
-dev-dependencies = [
-    "mypy>=1.15.0",
-    "pytest>=8.3.5",
-    "ruff>=0.11.7",
-    "pre-commit>=4.2.0",
-]
-
-[tool.hatch.metadata]
-allow-direct-references = true
-
-[tool.hatch.build.targets.wheel]
-packages = ["src"]
-
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-q --strict-markers"
-testpaths = ["tests"]
-
-[tool.mypy]
-python_version = "3.11"
-check_untyped_defs = true
-disallow_untyped_calls = true
-ignore_missing_imports = true
-
-[tool.ruff]
-line-length = 88
-select = ["E", "F", "W", "C", "B"]
-exclude = ["build/", ".venv/"]
-fix = true
+description = "Prototype of a library to control Kmbox Net. Implemented using Python's socket module"
+requires-python = ">=3.10"
+dependencies = []

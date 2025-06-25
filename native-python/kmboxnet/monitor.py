@@ -6,17 +6,7 @@ CMD_MONITOR     = 0x27388020
 CMD_MOUSE_MOVE  = 0xAEDE7345
 CMD_MOUSE_RIGHT = 0x238D8212
 
-# 例外定義
 class KmboxError(Exception):
-    pass
-
-class CreateSocketError(KmboxError):
-    pass
-
-class TimeoutError(KmboxError):
-    pass
-
-class CommandError(KmboxError):
     pass
 
 class MonitorError(KmboxError):
@@ -28,8 +18,8 @@ class Monitor:
         self._sock: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._running = False
-        self._mouse_buttons = 0   
-        self._keyboard_byte = 0   
+        self._mouse_buttons = 0
+        self._keyboard_byte = 0
 
     def start(self):
         if self._running:
