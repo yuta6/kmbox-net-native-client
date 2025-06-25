@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import time
 
 from .monitor import Monitor
-from .hidtable import HidKey
+import ipaddress
 
 CMD_CONNECT        = 0xaf3c2828
 CMD_MOUSE_MOVE     = 0xaede7345
@@ -26,6 +26,34 @@ CMD_SETVIDPID      = 0xffed3232
 CMD_SHOWPIC        = 0x12334883
 CMD_TRACE_ENABLE   = 0xbbcdddac
 
+@dataclass
+class SoftMouse:
+    button: int = 0
+    x: int = 0
+    y: int = 0
+    wheel: int = 0
+    point: list[int] = field(default_factory=lambda: [0] * 10)
+
+    def to_payload(self) -> bytes:
+        """Convert to struct payload"""
+        return struct.pack("<14i", self.button, self.x, self.y, self.wheel, *self.point)
+
+    def reset_movement(self) :
+        """Reset relative movement values"""
+        self.x = 0
+        self.y = 0
+        self.wheel = 0
+
+@dataclass
+class SoftKeyboard:
+    ctrl: int = 0
+    reserved: int = 0
+    button: list[int] = field(default_factory=lambda: [0] * 10)
+
+    def to_payload(self) -> bytes:
+        """Convert to struct payload"""
+        return struct.pack("<BB10B", self.ctrl, self.reserved, *self.button)
+
 class Kmbox:
     TIMEOUT= 2.0
 
@@ -45,9 +73,9 @@ class Kmbox:
         except ValueError:
             raise ConnectionError("UUID is 8 degits.")
 
-        # key
         self._index = 0
         self._soft_mouse = SoftMouse()
+        self._soft_keyboard = SoftKeyboard()
 
         # define sokect
         try:
@@ -113,6 +141,30 @@ class Kmbox:
         self._soft_mouse.reset_movement()
         return result
 
+    def move_auto(self, x: int, y: int, ms: int) -> bool:
+        """Auto move mouse with time specification"""
+        self._soft_mouse.x = x
+        self._soft_mouse.y = y
+
+        result, _ = self.send_cmd(CMD_MOUSE_AUTOMOVE, self._soft_mouse.to_payload(), rand_override=ms)
+
+        self._soft_mouse.reset_movement()
+        return result
+
+    def move_bezier(self, x: int, y: int, ms: int, x1: int, y1: int, x2: int, y2: int) -> bool:
+        """Bezier curve mouse movement"""
+        self._soft_mouse.x = x
+        self._soft_mouse.y = y
+        self._soft_mouse.point[0] = x1
+        self._soft_mouse.point[1] = y1
+        self._soft_mouse.point[2] = x2
+        self._soft_mouse.point[3] = y2
+
+        result, _ = self.send_cmd(CMD_BEZIER_MOVE, self._soft_mouse.to_payload(), rand_override=ms)
+
+        self._soft_mouse.reset_movement()
+        return result
+
     def left(self, is_down: bool) -> bool:
         """Left mouse button"""
         if is_down:
@@ -150,6 +202,25 @@ class Kmbox:
         result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self._soft_mouse.to_payload())
 
         self._soft_mouse.wheel = 0
+        return result
+
+    def key_down(self, vk_key: int) -> bool:
+        """Press key down"""
+        if 0xE0 <= vk_key <= 0xE7:
+            bit_pos = vk_key - 0xE0  # 0xE0→0, 0xE1→1, ..., 0xE7→7
+            self._soft_keyboard.ctrl |= (1 << bit_pos)
+        else:
+            for i in range(10):
+                if self._soft_keyboard.button[i] == vk_key:
+                    break
+                if self._soft_keyboard.button[i] == 0:
+                    self._soft_keyboard.button[i] = vk_key
+                    break
+            else:
+                self._soft_keyboard.button[:-1] = self._soft_keyboard.button[1:]
+                self._soft_keyboard.button[9] = vk_key
+
+        result, _ = self.send_cmd(CMD_KEYBOARD_ALL, self._soft_keyboard.to_payload())
         return result
 
     def mouse_all(self, button: int, x: int, y: int, wheel: int) -> bool:
@@ -236,41 +307,125 @@ class Kmbox:
         result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=self.mask_flag)
         return result
 
-    @property
-    def is_left(self) -> bool:
-        if not self.monitor:
-            raise MonitorError("monitor not configured")
-        return self.monitor.is_mouse_left
+    def key_up(self, vk_key: int) -> bool:
+        """Release key"""
+        if 0xE0 <= vk_key <= 0xE7:
+            bit_pos = vk_key - 0xE0
+            self._soft_keyboard.ctrl &= ~(1 << bit_pos)
+        else:
+            for i in range(10):
+                if self._soft_keyboard.button[i] == vk_key:
+                    self._soft_keyboard.button[i:-1] = self._soft_keyboard.button[i+1:]
+                    self._soft_keyboard.button[9] = 0
+                    break
 
-    @property
-    def is_middle(self) -> bool:
-        if not self.monitor:
-            raise MonitorError("monitor not configured")
-        return self.monitor.is_mouse_middle
+        result, _ = self.send_cmd(CMD_KEYBOARD_ALL, self._soft_keyboard.to_payload())
+        return result
 
-    @property
-    def is_right(self) -> bool:
-        if not self.monitor:
-            raise MonitorError("monitor not configured")
-        return self.monitor.is_mouse_right
+    def mask_keyboard(self, vkey: int) -> bool:
+        """Mask specific keyboard key"""
+        v_key = vkey & 0xFF
+        rand_value = (self.mask_flag & 0xFF) | (v_key << 8)
+        result, _ = self.send_cmd(CMD_MASK_MOUSE, rand_override=rand_value)
+        return result
 
-@dataclass
-class SoftMouse:
-    button: int = 0
-    x: int = 0
-    y: int = 0
-    wheel: int = 0
-    point: list[int] = field(default_factory=lambda: [0] * 10)
+    def unmask_keyboard(self, vkey: int) -> bool:
+        """Unmask specific keyboard key"""
+        v_key = vkey & 0xFF
+        rand_value = (self.mask_flag & 0xFF) | (v_key << 8)
+        result, _ = self.send_cmd(CMD_UNMASK_ALL, rand_override=rand_value)
+        return result
 
-    def to_payload(self) -> bytes:
-        """Convert to struct payload"""
-        return struct.pack("<14i", self.button, self.x, self.y, self.wheel, *self.point)
+    def unmask_all(self) -> bool:
+        """Unmask all previously masked inputs"""
+        self.mask_flag = 0
+        result, _ = self.send_cmd(CMD_UNMASK_ALL, rand_override=self.mask_flag)
+        return result
 
-    def reset_movement(self) :
-        """Reset relative movement values"""
-        self.x = 0
-        self.y = 0
-        self.wheel = 0
+    def set_config(self, ip: str, port: int) -> bool:
+        """Set device IP configuration"""
+        ip_int = int(ipaddress.IPv4Address(ip))
+        payload = struct.pack(">H", port)
+        result, _ = self.send_cmd(CMD_SETCONFIG, payload, rand_override=ip_int)
+        return result
+
+    def reboot(self) -> bool:
+        """Reboot the kmbox device and disconnect"""
+        try:
+            result, _ = self.send_cmd(CMD_REBOOT)
+
+            self._sock.close()
+
+            if self.monitor:
+                self.monitor.stop()
+
+            return result
+        except Exception:
+            return False
+
+    def debug(self, port: int, enable: bool) -> bool:
+        """Enable/disable debug output to specified port"""
+        rand_value = port | (int(enable) << 16)
+        result, _ = self.send_cmd(CMD_DEBUG, rand_override=rand_value)
+        return result
+
+    def lcd_color(self, rgb565: int) -> bool:
+        """Fill LCD screen with specified color"""
+        try:
+            for y in range(40):
+                color_data = struct.pack("<512H", *([rgb565] * 512))
+                rand_value = 0 | (y * 4)
+                result, _ = self.send_cmd(CMD_SHOWPIC, color_data, rand_override=rand_value)
+                if not result:
+                    return False
+            return True
+        except Exception:
+            return False
+
+    def lcd_picture_bottom(self, image_data: bytes) -> bool:
+        """Display 128x80 picture on bottom of LCD"""
+        if len(image_data) != 128 * 80 * 2:  # 128x80x2bytes
+            raise ValueError("Image data must be 128x80x2 bytes (RGB565)")
+
+        try:
+            for y in range(20):
+                row_data = image_data[y * 1024:(y + 1) * 1024]
+                rand_value = 80 + (y * 4)
+                result, _ = self.send_cmd(CMD_SHOWPIC, row_data, rand_override=rand_value)
+                if not result:
+                    return False
+            return True
+        except Exception:
+            return False
+
+    def lcd_picture(self, image_data: bytes) -> bool:
+        """Display 128x160 picture on full LCD"""
+        if len(image_data) != 128 * 160 * 2:
+            raise ValueError("Image data must be 128x160x2 bytes (RGB565)")
+
+        try:
+            for y in range(40):  # 40行分（160ピクセル高さ）
+                # 1024バイト (512ピクセル) 分のデータ
+                row_data = image_data[y * 1024:(y + 1) * 1024]
+                rand_value = y * 4  # Y座標
+                result, _ = self.send_cmd(CMD_SHOWPIC, row_data, rand_override=rand_value)
+                if not result:
+                    return False
+            return True
+        except Exception:
+            return False
+
+    def set_vid_pid(self, vid: int, pid: int) -> bool:
+        """Set USB Vendor ID and Product ID"""
+        payload = struct.pack("<HH", vid, pid)
+        result, _ = self.send_cmd(CMD_SETVIDPID, payload)
+        return result
+
+    def trace_enable(self, enable: bool) -> bool:
+        """Enable/disable trace functionality"""
+        rand_value = 1 if enable else 0
+        result, _ = self.send_cmd(CMD_TRACE_ENABLE, rand_override=rand_value)
+        return result
 
 class KmboxError(Exception):
     pass
