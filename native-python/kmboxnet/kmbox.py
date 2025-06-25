@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 
 from .monitor import Monitor,MonitorError
 from .hidtable import HidKey
-from ._bitmask import BitMask
 
 CMD_CONNECT        = 0xaf3c2828
 CMD_MOUSE_MOVE     = 0xaede7345
@@ -49,7 +48,6 @@ class Kmbox:
         self.key = list(mac_bytes)
         self.index = 0
         self.soft_mouse = SoftMouse()
-        self.soft_keyboard = SoftKeyboard()
 
         # define sokect
         try:
