@@ -3,7 +3,7 @@ import time
 from kmboxnet import Kmbox , HardMouse, HardKeyboard , Event
 from ip_port_uuid import IP, PORT, UUID
 
-mouse = Kmbox(ip=IP, port=PORT, uuid=UUID)
+mouse = Kmbox(ip=IP, port=PORT, uuid=UUID, monitor_timeout=0.01)
 
 current_time = time.perf_counter()
 time.sleep(1)
