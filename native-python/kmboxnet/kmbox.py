@@ -3,6 +3,7 @@ import struct
 import random
 from dataclasses import dataclass, field
 import time
+from typing import Optional
 
 from .monitor import Monitor
 import ipaddress
@@ -57,7 +58,7 @@ class SoftKeyboard:
 class Kmbox:
     TIMEOUT= 2.0
 
-    def __init__(self, ip: str, port: int, uuid: str, monitor_port:int|None = 5002, monitor_timeout: float = 0.003):
+    def __init__(self, ip: str, port: int, uuid: str, monitor_port:int|None = 5002, monitor_timeout: Optional[float] = 0.003):
         """
         :param ip: Kmbox IP Adress
         :param port: Kmbox Port

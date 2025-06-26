@@ -26,7 +26,7 @@ class Event :
     keyboard: HardKeyboard
 
 class Monitor:
-    def __init__(self, port: int, monitor_timeout: float = 0.003):
+    def __init__(self, port: int, monitor_timeout: Optional[float] = 0.003):
         self.port = port
         self.running = False
         self.sock: Optional[socket.socket] = None
