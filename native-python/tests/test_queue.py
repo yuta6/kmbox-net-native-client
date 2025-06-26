@@ -1,16 +1,15 @@
 import time
 
-from kmboxnet import Kmbox , HardMouse, HardKeyboard
+from kmboxnet import Kmbox , HardMouse, HardKeyboard , Event
 from ip_port_uuid import IP, PORT, UUID
 
 mouse = Kmbox(ip=IP, port=PORT, uuid=UUID)
 
-while True :
-    events : dict  = mouse.monitor.events.get()
-    if "mouse" in events:
-        ms = events["mouse"]
-        print(ms.report_id, ms.buttons, ms.x, ms.y, ms.wheel)
-    else :
-        print("No mouse data available")
-
-    print()
+current_time = time.perf_counter()
+time.sleep(1)
+index = 0
+while time.perf_counter()-current_time < 5.0:
+    index += 1
+    event: Event  = mouse.monitor.events.get()
+    length = mouse.monitor.events.qsize()
+    print(f"index :{index}, length :{length}, {event.mouse}, {event.keyboard}")

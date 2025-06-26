@@ -3,6 +3,7 @@ import socket
 from dataclasses import dataclass, field
 from typing import Optional
 import struct
+import queue
 
 @dataclass
 class HardMouse:
@@ -18,6 +19,11 @@ class HardKeyboard:
     buttons: int = 0
     data: list[int] = field(default_factory=lambda: [0] * 10)
 
+@dataclass
+class Event :
+    mouse: HardMouse
+    keyboard: HardKeyboard
+
 class Monitor:
     TIMEOUT = 2.0
 
@@ -29,6 +35,8 @@ class Monitor:
 
         self.hard_mouse = HardMouse()
         self.hard_keyboard = HardKeyboard()
+
+        self.events = queue.Queue()
 
         self._lock = threading.Lock()
 
@@ -98,25 +106,34 @@ class Monitor:
                     print(f"Insufficient data for mouse: {len(data)} bytes")
                     return
 
-                # Mouse Parse 8byte
+                # Mouse Parse 8 byte
                 # struct: report_id(1) + buttons(1) + x(2) + y(2) + wheel(2)
                 mouse_data = struct.unpack("<BBhhh", data[:8])
-                self.hard_mouse.report_id = mouse_data[0]
-                self.hard_mouse.buttons = mouse_data[1]
-                self.hard_mouse.x = mouse_data[2]
-                self.hard_mouse.y = mouse_data[3]
-                self.hard_mouse.wheel = mouse_data[4]
+                new_mouse = HardMouse(
+                    report_id=mouse_data[0],
+                    buttons=mouse_data[1],
+                    x=mouse_data[2],
+                    y=mouse_data[3],
+                    wheel=mouse_data[4]
+                )
 
-                # keyboard parse 12byte
+                # keyboard parse 12 byte
                 if len(data) >= 20:  # 8(mouse) + 12(keyboard)
                     # struct: report_id(1) + buttons(1) + data[10](10)
                     keyboard_data = struct.unpack("<BB10B", data[8:20])
-                    self.hard_keyboard.report_id = keyboard_data[0]
-                    self.hard_keyboard.buttons = keyboard_data[1]
-                    self.hard_keyboard.data = list(keyboard_data[2:])
+                    new_keyboard = HardKeyboard(
+                        report_id=keyboard_data[0],
+                        buttons=keyboard_data[1],
+                        data=list(keyboard_data[2:])
+                    )
                 elif len(data) >= 8:
                     print(f"Only mouse data available: {len(data)} bytes")
+                    new_keyboard = self.hard_keyboard
 
+                self.hard_mouse = new_mouse
+                self.hard_keyboard = new_keyboard
+
+                self.events.put(Event(mouse=new_mouse, keyboard=new_keyboard))
         except struct.error as e:
             print(f"Data parse error: {e}, data length: {len(data)}")
 
