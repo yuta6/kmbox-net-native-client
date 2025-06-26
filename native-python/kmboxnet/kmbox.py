@@ -57,7 +57,7 @@ class SoftKeyboard:
 class Kmbox:
     TIMEOUT= 2.0
 
-    def __init__(self, ip: str, port: int, uuid: str, monitor_port:int|None = 5002):
+    def __init__(self, ip: str, port: int, uuid: str, monitor_port:int|None = 5002, monitor_timeout: float = 0.003):
         """
         :param ip: Kmbox IP Adress
         :param port: Kmbox Port
@@ -99,7 +99,7 @@ class Kmbox:
                 result, data = self.send_cmd(CMD_MONITOR, rand_override=rand_override)
 
                 if result:
-                    self.monitor = Monitor(monitor_port)
+                    self.monitor = Monitor(monitor_port, monitor_timeout)
                     self.monitor.start()
                     time.sleep(0.01)
                 else:

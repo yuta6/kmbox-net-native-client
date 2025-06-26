@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 import struct
 import queue
+import time
 
 @dataclass
 class HardMouse:
@@ -25,10 +26,7 @@ class Event :
     keyboard: HardKeyboard
 
 class Monitor:
-    TIMEOUT = 2.0
-    NO_INPUT_TIMEOUT = 0.003
-
-    def __init__(self, port: int):
+    def __init__(self, port: int, monitor_timeout: float = 0.003):
         self.port = port
         self.running = False
         self.sock: Optional[socket.socket] = None
@@ -38,7 +36,10 @@ class Monitor:
         self.hard_keyboard = HardKeyboard()
 
         self.events = queue.Queue()
-        
+
+        self.is_neutral_event_sent = False
+        self.monitor_timeout = monitor_timeout
+
         self._lock = threading.Lock()
 
     def start(self):
@@ -48,7 +49,7 @@ class Monitor:
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.settimeout(self.TIMEOUT)
+            self.sock.settimeout(self.monitor_timeout)
             self.sock.bind(('0.0.0.0', self.port))
 
             self.running = True
@@ -88,8 +89,31 @@ class Monitor:
                         self.hard_mouse = new_mouse
                         self.hard_keyboard = new_keyboard
 
+                    self.last_event_time = time.perf_counter()
+                    self.is_neutral_event_sent = False
+
                 except socket.timeout:
-                    continue
+                    if not self.is_neutral_event_sent:
+                        with self._lock:
+                            if self.hard_mouse is None or self.hard_keyboard is None:
+                                continue
+
+                            neutral_mouse = HardMouse(
+                                report_id=self.hard_mouse.report_id,
+                                buttons=self.hard_mouse.buttons,
+                                x=0, y=0,
+                                wheel=self.hard_mouse.wheel
+                            )
+                            current_keyboard = self.hard_keyboard
+
+                            self.hard_mouse = neutral_mouse
+                            self.hard_keyboard = current_keyboard
+                            self.events.put(Event(neutral_mouse, current_keyboard))
+
+                        self.is_neutral_event_sent = True
+                        continue
+                    else :
+                        continue
                 except Exception as e:
                     if self.running:
                         print(f"Monitor receive error: {e}")
