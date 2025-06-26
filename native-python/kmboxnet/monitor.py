@@ -26,6 +26,7 @@ class Event :
 
 class Monitor:
     TIMEOUT = 2.0
+    NO_INPUT_TIMEOUT = 0.003
 
     def __init__(self, port: int):
         self.port = port
@@ -37,7 +38,7 @@ class Monitor:
         self.hard_keyboard = HardKeyboard()
 
         self.events = queue.Queue()
-
+        
         self._lock = threading.Lock()
 
     def start(self):
@@ -81,8 +82,12 @@ class Monitor:
             while self.running and self.sock:
                 try:
                     data, addr = self.sock.recvfrom(1024)
-                    if len(data) >= 7:
-                        self._update_hard(data)
+                    new_mouse, new_keyboard = self._build_mouse_and_keyboard_from_data(data)
+                    with self._lock:
+                        self.events.put(Event(new_mouse, new_keyboard))
+                        self.hard_mouse = new_mouse
+                        self.hard_keyboard = new_keyboard
+
                 except socket.timeout:
                     continue
                 except Exception as e:
@@ -99,41 +104,37 @@ class Monitor:
                 except:
                     pass
 
-    def _update_hard(self, data: bytes):
+    def _build_mouse_and_keyboard_from_data(self, data: bytes) -> tuple[HardMouse, HardKeyboard]:
         try:
-            with self._lock:
-                if len(data) < 8:
-                    print(f"Insufficient data for mouse: {len(data)} bytes")
-                    return
+            if len(data) < 8:
+                print(f"Insufficient data for mouse: {len(data)} bytes")
+                raise struct.error
 
-                # Mouse Parse 8 byte
-                # struct: report_id(1) + buttons(1) + x(2) + y(2) + wheel(2)
-                mouse_data = struct.unpack("<BBhhh", data[:8])
-                new_mouse = HardMouse(
-                    report_id=mouse_data[0],
-                    buttons=mouse_data[1],
-                    x=mouse_data[2],
-                    y=mouse_data[3],
-                    wheel=mouse_data[4]
+            # Mouse Parse 8 byte
+            # struct: report_id(1) + buttons(1) + x(2) + y(2) + wheel(2)
+            mouse_data = struct.unpack("<BBhhh", data[:8])
+            new_mouse = HardMouse(
+                report_id=mouse_data[0],
+                buttons=mouse_data[1],
+                x=mouse_data[2],
+                y=mouse_data[3],
+                wheel=mouse_data[4]
+            )
+
+            # keyboard parse 12 byte
+            if len(data) >= 20:  # 8(mouse) + 12(keyboard)
+                # struct: report_id(1) + buttons(1) + data[10](10)
+                keyboard_data = struct.unpack("<BB10B", data[8:20])
+                new_keyboard = HardKeyboard(
+                    report_id=keyboard_data[0],
+                    buttons=keyboard_data[1],
+                    data=list(keyboard_data[2:])
                 )
+            elif len(data) >= 8:
+                print(f"Only mouse data available: {len(data)} bytes")
+                raise struct.error
 
-                # keyboard parse 12 byte
-                if len(data) >= 20:  # 8(mouse) + 12(keyboard)
-                    # struct: report_id(1) + buttons(1) + data[10](10)
-                    keyboard_data = struct.unpack("<BB10B", data[8:20])
-                    new_keyboard = HardKeyboard(
-                        report_id=keyboard_data[0],
-                        buttons=keyboard_data[1],
-                        data=list(keyboard_data[2:])
-                    )
-                elif len(data) >= 8:
-                    print(f"Only mouse data available: {len(data)} bytes")
-                    new_keyboard = self.hard_keyboard
-
-                self.hard_mouse = new_mouse
-                self.hard_keyboard = new_keyboard
-
-                self.events.put(Event(mouse=new_mouse, keyboard=new_keyboard))
+            return new_mouse, new_keyboard
         except struct.error as e:
             print(f"Data parse error: {e}, data length: {len(data)}")
 
