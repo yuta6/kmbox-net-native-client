@@ -1,7 +1,6 @@
 # kmboxnet 🎉
 
 [![PyPI version](https://img.shields.io/pypi/v/kmboxnet.svg)](https://pypi.python.org/pypi/kmboxnet)
-[![Python Version](https://img.shields.io/pypi/pyversions/kmboxnet.svg)](https://pypi.org/project/kmboxnet/)
 
 Welcome to `kmboxnet`! ✨ This is a fun, prototype library for controlling your **Kmbox Net** device, written in pure Python. No heavy dependencies—it's all built using the standard `socket` library, making it super lightweight and easy to use.
 

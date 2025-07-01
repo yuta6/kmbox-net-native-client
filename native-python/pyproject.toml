@@ -1,7 +1,8 @@
 [project]
 name = "kmboxnet"
-version = "0.2.1"
+version = "0.2.3"
 description = "Prototype of a controller library for Kmbox Net. Depends only on Python standard libraries. Implemented using Python's socket module."
 requires-python = ">=3.8"
 dependencies = []
-
+authors = [{ name = "yuta6" }]
+readme = "README.md"
