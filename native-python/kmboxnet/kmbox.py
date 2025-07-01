@@ -486,6 +486,18 @@ class KmboxNet:
         result, _ = self.send_cmd(CMD_TRACE_ENABLE, rand_override=rand_value)
         return result
 
+    def __del__(self):
+        try:
+            self.left(False)
+            self.right(False)
+            self.middle(False)
+            self.unmask_all()
+            if self.monitor:
+                self.monitor.stop()
+            self._sock.close()
+        except Exception:
+            print("KmboxNet, Failed to close!")
+            pass
 class KmboxError(Exception):
     """KmboxNet related errors"""
     pass
