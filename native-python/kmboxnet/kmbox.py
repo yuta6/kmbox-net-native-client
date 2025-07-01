@@ -4,9 +4,9 @@ import random
 from dataclasses import dataclass, field
 import time
 from typing import Optional
+import ipaddress
 
 from .monitor import Monitor
-import ipaddress
 
 CMD_CONNECT        = 0xaf3c2828
 CMD_MOUSE_MOVE     = 0xaede7345
