@@ -80,6 +80,22 @@ The ideal solution to this problem is to implement a **command queue system**. T
 
 This would make the library truly high-performance. **Contributions in this area are highly welcome!** If you're interested in tackling this, please feel free to open a pull request or start a discussion in the issues.
 
+### About Untested Functions
+
+While most major functions—including `move_auto` and `move_bezier`—are already tested, **the following functions have not been fully tested yet**:
+
+* `set_config`
+* `reboot`
+* `debug`
+* `lcd_color`
+* `lcd_picture_bottom`
+* `lcd_picture`
+* `set_vid_pid`
+* `trace_enable`
+
+If you find any bugs or issues when using these functions, **please let me know by opening an issue**.
+Your feedback and reports are greatly appreciated!
+
 ## Advanced `Monitor` Usage: The Secret of `monitor_timeout`
 
 The `monitor_timeout` parameter is a powerful feature that changes how you receive physical mouse movement events. This is perfect for visualizing or reacting to raw hardware inputs.
