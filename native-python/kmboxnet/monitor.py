@@ -13,6 +13,7 @@ class HardMouse:
     x: int = 0
     y: int = 0
     wheel: int = 0
+    time_stamp : float = 0
 
 @dataclass
 class HardKeyboard:
@@ -102,7 +103,8 @@ class Monitor:
                                 report_id=self.hard_mouse.report_id,
                                 buttons=self.hard_mouse.buttons,
                                 x=0, y=0,
-                                wheel=self.hard_mouse.wheel
+                                wheel=self.hard_mouse.wheel,
+                                time_stamp=time.perf_counter()
                             )
                             current_keyboard = self.hard_keyboard
 
@@ -142,7 +144,8 @@ class Monitor:
                 buttons=mouse_data[1],
                 x=mouse_data[2],
                 y=mouse_data[3],
-                wheel=mouse_data[4]
+                wheel=mouse_data[4],
+                time_stamp = time.perf_counter()
             )
 
             # keyboard parse 12 byte
