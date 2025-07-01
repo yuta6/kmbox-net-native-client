@@ -60,10 +60,17 @@ class KmboxNet:
 
     def __init__(self, ip: str, port: int, uuid: str, monitor_port:int|None = 5002, monitor_timeout: Optional[float] = 0.003):
         """
-        :param ip: Kmbox IP Adress
-        :param port: Kmbox Port
-        :param uuid: Kmbox UUID 8 degits hex
-        :param timeout: socket receive timeout
+        Initialize KmboxNet connection.
+
+        Args:
+            ip (str): Your Kmbox device IP address
+            port (int): Your Kmbox device port number
+            uuid (str): Your Kmbox device UUID (8 digit hexadecimal)
+            monitor_port (int|None, optional): Monitor port number. None to disable. Defaults to 5002.
+            monitor_timeout (float, optional): Monitor timeout in seconds. Defaults to 0.003.
+
+        Raises:
+            KmboxError: If UUID is invalid or connection fails
         """
         # mac address generation from uuid
         try:
@@ -116,6 +123,17 @@ class KmboxNet:
         return struct.pack("<IIII", self.mac, rand_override, self._index, cmd)
 
     def send_cmd(self, cmd: int, payload: bytes = b'', rand_override: int | None = None) -> tuple[bool, bytes]:
+        """
+        Send directly command to Kmbox device.
+
+        Args:
+            cmd (int): Command ID to send
+            payload (bytes, optional): Command payload data. Defaults to b''.
+            rand_override (int | None, optional): Override random value. Defaults to None.
+
+        Returns:
+            tuple[bool, bytes]: (Success status, Response data)
+        """
         self._sock.sendto(self._make_header(cmd, rand_override) + payload, self._server_addr)
 
         try:
@@ -135,7 +153,16 @@ class KmboxNet:
             return False, b''
 
     def move(self, x: int, y: int) -> bool:
-        """Move mouse"""
+        """
+        Move mouse cursor relatively.
+
+        Args:
+            x (int): Relative X-axis movement in pixels
+            y (int): Relative Y-axis movement in pixels
+
+        Returns:
+            bool: True if command sent successfully
+        """
         self._soft_mouse.x = x
         self._soft_mouse.y = y
 
@@ -145,7 +172,17 @@ class KmboxNet:
         return result
 
     def move_auto(self, x: int, y: int, ms: int) -> bool:
-        """Auto move mouse with time specification"""
+        """
+        Move mouse cursor automatically over specified duration.
+
+        Args:
+            x (int): Relative X-axis movement in pixels
+            y (int): Relative Y-axis movement in pixels
+            ms (int): Movement duration in milliseconds
+
+        Returns:
+            bool: True if command sent successfully
+        """
         self._soft_mouse.x = x
         self._soft_mouse.y = y
 
@@ -155,7 +192,21 @@ class KmboxNet:
         return result
 
     def move_bezier(self, x: int, y: int, ms: int, x1: int, y1: int, x2: int, y2: int) -> bool:
-        """Bezier curve mouse movement"""
+        """
+        Move mouse cursor using Bezier curve.
+
+        Args:
+            x (int): End point X coordinate
+            y (int): End point Y coordinate
+            ms (int): Movement duration in milliseconds
+            x1 (int): First control point X coordinate
+            y1 (int): First control point Y coordinate
+            x2 (int): Second control point X coordinate
+            y2 (int): Second control point Y coordinate
+
+        Returns:
+            bool: True if command sent successfully
+        """
         self._soft_mouse.x = x
         self._soft_mouse.y = y
         self._soft_mouse.point[0] = x1
@@ -199,11 +250,17 @@ class KmboxNet:
         return result
 
     def wheel(self, wheel_value: int) -> bool:
-        """Mouse wheel scroll"""
+        """
+        Scroll mouse wheel.
+
+        Args:
+            wheel_value (int): Wheel scroll amount (positive for up, negative for down)
+
+        Returns:
+            bool: True if command sent successfully
+        """
         self._soft_mouse.wheel = wheel_value
-
         result, _ = self.send_cmd(CMD_MOUSE_WHEEL, self._soft_mouse.to_payload())
-
         self._soft_mouse.wheel = 0
         return result
 
@@ -409,7 +466,7 @@ class KmboxNet:
         try:
             for y in range(40):
                 row_data = image_data[y * 1024:(y + 1) * 1024]
-                rand_value = y * 4 
+                rand_value = y * 4
                 result, _ = self.send_cmd(CMD_SHOWPIC, row_data, rand_override=rand_value)
                 if not result:
                     return False
