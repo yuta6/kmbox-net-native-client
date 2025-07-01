@@ -72,7 +72,7 @@ class KmboxNet:
                 raise ValueError
             self.mac = int.from_bytes(mac_bytes, byteorder='big')
         except ValueError:
-            raise ConnectionError("UUID is 8 degits.")
+            raise KmboxError("UUID is 8 degits.")
 
         self._index = 0
         self._soft_mouse = SoftMouse()
@@ -85,12 +85,12 @@ class KmboxNet:
             self._sock.settimeout(self.TIMEOUT)
             self._server_addr = (ip, port)
         except Exception as e:
-            raise ConnectionError(e)
+            raise KmboxError(e)
 
         # send connectet command
         result, _ = self.send_cmd(CMD_CONNECT)
         if result is False:
-            raise ConnectionError("Connection failture.")
+            raise KmboxError("Connection failture.")
 
         # start monitor
         self.monitor: Monitor | None = None
@@ -104,7 +104,7 @@ class KmboxNet:
                     self.monitor.start()
                     time.sleep(0.01)
                 else:
-                    raise MonitorError("Device monitor setup failed")
+                    raise KmboxError("Device monitor setup failed")
 
             except Exception as e:
                 print(f"monitor start error: {e}")
@@ -122,11 +122,11 @@ class KmboxNet:
             data, sender_addr = self._sock.recvfrom(1024)
             _, _, resp_index, resp_cmd = struct.unpack("<IIII", data[:16])
             if resp_cmd != cmd or resp_index != self._index or sender_addr != self._server_addr:
-                raise CommandError("Invalid Response")
+                raise KmboxError("Invalid Response")
             return True, data
         except socket.timeout:
             raise TimeoutError("Command Timeout")
-        except CommandError as e:
+        except KmboxError as e:
             print(f"Warning:{e}")
             return False, b''
         except Exception as e:
@@ -406,10 +406,9 @@ class KmboxNet:
             raise ValueError("Image data must be 128x160x2 bytes (RGB565)")
 
         try:
-            for y in range(40):  # 40行分（160ピクセル高さ）
-                # 1024バイト (512ピクセル) 分のデータ
+            for y in range(40):
                 row_data = image_data[y * 1024:(y + 1) * 1024]
-                rand_value = y * 4  # Y座標
+                rand_value = y * 4 
                 result, _ = self.send_cmd(CMD_SHOWPIC, row_data, rand_override=rand_value)
                 if not result:
                     return False
@@ -430,16 +429,5 @@ class KmboxNet:
         return result
 
 class KmboxError(Exception):
-    pass
-
-class ConnectionError(KmboxError):
-    pass
-
-class TimeoutError(KmboxError):
-    pass
-
-class CommandError(KmboxError):
-    pass
-
-class MonitorError(KmboxError):
+    """KmboxNet related errors"""
     pass

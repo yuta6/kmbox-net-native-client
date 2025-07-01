@@ -62,7 +62,7 @@ class Monitor:
             if self.sock:
                 self.sock.close()
                 self.sock = None
-            raise MonitorError(f"Monitor start failed: {e}")
+            raise KmboxNetMonitorError(f"Monitor start failed: {e}")
 
     def stop(self):
         """monitor stop"""
@@ -212,8 +212,6 @@ class Monitor:
     def is_running(self) -> bool:
         return self.running
 
-class MonitorError(Exception):
-    pass
-
-class MonitorError(Exception):
+class KmboxNetMonitorError(Exception):
+    """Monitor related errors"""
     pass
