@@ -125,7 +125,8 @@ class KmboxNet:
                 raise KmboxError("Invalid Response")
             return True, data
         except socket.timeout:
-            raise TimeoutError("Command Timeout")
+            print("Command Timeout, Kmbox net is not connected?")
+            return False, b''
         except KmboxError as e:
             print(f"Warning:{e}")
             return False, b''
