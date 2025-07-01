@@ -11,15 +11,21 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: native-python
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install uv
         uses: astral-sh/setup-uv@v3
-
-      - name: Set up Python
-        run: uv python install
 
       - name: Install dependencies
         run: uv sync
@@ -31,3 +37,4 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: uv publish
+
