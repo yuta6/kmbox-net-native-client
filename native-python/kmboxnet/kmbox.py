@@ -55,7 +55,7 @@ class SoftKeyboard:
         """Convert to struct payload"""
         return struct.pack("<BB10B", self.ctrl, self.reserved, *self.button)
 
-class Kmbox:
+class KmboxNet:
     TIMEOUT= 2.0
 
     def __init__(self, ip: str, port: int, uuid: str, monitor_port:int|None = 5002, monitor_timeout: Optional[float] = 0.003):

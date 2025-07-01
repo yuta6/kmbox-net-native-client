@@ -1,9 +1,9 @@
 import time
 
-from kmboxnet import Kmbox
+from kmboxnet import KmboxNet
 from ip_port_uuid import IP, PORT, UUID
 
-mouse = Kmbox(ip=IP, port=PORT, uuid=UUID)
+mouse = KmboxNet(ip=IP, port=PORT, uuid=UUID)
 
 while True :
     print(mouse.monitor.hard_mouse, mouse.monitor.hard_keyboard)
