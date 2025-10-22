@@ -134,22 +134,31 @@ class KmboxNet:
         Returns:
             tuple[bool, bytes]: (Success status, Response data)
         """
-        self._sock.sendto(self._make_header(cmd, rand_override) + payload, self._server_addr)
+        header = self._make_header(cmd, rand_override)
+        
+        MAX_PACKET_SIZE = 1500  # keep safely at MTU of 1500
+        
+        # If total packet fits in one send
+        if len(header) + len(payload) <= MAX_PACKET_SIZE:
+            packet = header + payload
+            # Send normally here
+            return self._send_packet(packet)
 
+        # Else send in chunks
+        for i in range(0, len(payload), MAX_PACKET_SIZE):
+            chunk_payload = payload[i:i + MAX_PACKET_SIZE]
+            packet = header + chunk_payload
+            success, response = self._send_packet(packet)
+            if not success:
+                return False, b''
+        return True, b''
+
+    def _send_packet(self, packet: bytes) -> tuple[bool, bytes]:
         try:
-            data, sender_addr = self._sock.recvfrom(1024)
-            _, _, resp_index, resp_cmd = struct.unpack("<IIII", data[:16])
-            if resp_cmd != cmd or resp_index != self._index or sender_addr != self._server_addr:
-                raise KmboxError("Invalid Response")
-            return True, data
-        except socket.timeout:
-            print("Command Timeout, Kmbox net is not connected?")
-            return False, b''
-        except KmboxError as e:
-            print(f"Warning:{e}")
-            return False, b''
-        except Exception as e:
-            print(f"Error:{e}")
+            self._sock.sendto(packet, self._server_addr)
+            return True, b''
+        except OSError as e:
+            print(f"Send error: {e}")
             return False, b''
 
     def move(self, x: int, y: int) -> bool:
@@ -464,12 +473,13 @@ class KmboxNet:
             raise ValueError("Image data must be 128x160x2 bytes (RGB565)")
 
         try:
-            for y in range(40):
-                row_data = image_data[y * 1024:(y + 1) * 1024]
-                rand_value = y * 4
-                result, _ = self.send_cmd(CMD_SHOWPIC, row_data, rand_override=rand_value)
-                if not result:
-                    return False
+            for _ in range(3): # Repeat three times - UDP seems drop some packets occasionally, three writes fixes it.
+                for y in range(40):
+                    row_data = image_data[y * 1024:(y + 1) * 1024]
+                    rand_value = y * 4
+                    result, _ = self.send_cmd(CMD_SHOWPIC, row_data, rand_override=rand_value)
+                    if not result:
+                        return False
             return True
         except Exception:
             return False
