@@ -6,3 +6,8 @@ requires-python = ">=3.8"
 dependencies = []
 authors = [{ name = "yuta6" }]
 readme = "README.md"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.10",
+]
