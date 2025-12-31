@@ -14,4 +14,3 @@ while True:
     time.sleep(1)
     mouse.move(0, -150)
     time.sleep(1)
-

@@ -13,4 +13,3 @@ while time.perf_counter() - current_time < 5.0:
     event: Event = mouse.monitor.events.get()
     length = mouse.monitor.events.qsize()
     print(f"index :{index}, length :{length}, {event.mouse}, {event.keyboard}")
-
