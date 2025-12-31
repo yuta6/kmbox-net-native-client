@@ -87,46 +87,47 @@ class Monitor:
         try:
             while self.running and self.sock:
                 try:
-                    data, addr = self.sock.recvfrom(1024)
-                    new_mouse, new_keyboard = self._build_mouse_and_keyboard_from_data(
-                        data
-                    )
-                    with self._lock:
-                        self.events.put(Event(new_mouse, new_keyboard))
-                        self.hard_mouse = new_mouse
-                        self.hard_keyboard = new_keyboard
-
-                    self.last_event_time = time.perf_counter()
-                    self.is_neutral_event_sent = False
-
+                    data, _addr = self.sock.recvfrom(1024)
                 except socket.timeout:
-                    if not self.is_neutral_event_sent:
-                        with self._lock:
-                            if self.hard_mouse is None or self.hard_keyboard is None:
-                                continue
-
-                            neutral_mouse = HardMouse(
-                                report_id=self.hard_mouse.report_id,
-                                buttons=self.hard_mouse.buttons,
-                                x=0,
-                                y=0,
-                                wheel=self.hard_mouse.wheel,
-                                time_stamp=time.perf_counter(),
-                            )
-                            current_keyboard = self.hard_keyboard
-
-                            self.hard_mouse = neutral_mouse
-                            self.hard_keyboard = current_keyboard
-                            self.events.put(Event(neutral_mouse, current_keyboard))
-
-                        self.is_neutral_event_sent = True
+                    if self.is_neutral_event_sent:
                         continue
-                    else:
-                        continue
-                except Exception as e:
+
+                    with self._lock:
+                        neutral_mouse = HardMouse(
+                            report_id=self.hard_mouse.report_id,
+                            buttons=self.hard_mouse.buttons,
+                            x=0,
+                            y=0,
+                            wheel=self.hard_mouse.wheel,
+                            time_stamp=time.perf_counter(),
+                        )
+                        current_keyboard = self.hard_keyboard
+
+                        self.hard_mouse = neutral_mouse
+                        self.hard_keyboard = current_keyboard
+                        self.events.put(Event(neutral_mouse, current_keyboard))
+
+                    self.is_neutral_event_sent = True
+                    continue
+                except OSError as e:
                     if self.running:
                         print(f"Monitor receive error: {e}")
                     break
+
+                try:
+                    new_mouse, new_keyboard = self._build_mouse_and_keyboard_from_data(
+                        data
+                    )
+                except (ValueError, struct.error):
+                    continue
+
+                with self._lock:
+                    self.events.put(Event(new_mouse, new_keyboard))
+                    self.hard_mouse = new_mouse
+                    self.hard_keyboard = new_keyboard
+
+                self.last_event_time = time.perf_counter()
+                self.is_neutral_event_sent = False
 
         except Exception as e:
             print(f"Monitor loop error: {e}")
@@ -140,39 +141,31 @@ class Monitor:
     def _build_mouse_and_keyboard_from_data(
         self, data: bytes
     ) -> tuple[HardMouse, HardKeyboard]:
-        try:
-            if len(data) < 8:
-                print(f"Insufficient data for mouse: {len(data)} bytes")
-                raise struct.error
+        if len(data) < 20:
+            raise ValueError(f"insufficient monitor packet: {len(data)} bytes")
 
-            # Mouse Parse 8 byte
-            # struct: report_id(1) + buttons(1) + x(2) + y(2) + wheel(2)
-            mouse_data = struct.unpack("<BBhhh", data[:8])
-            new_mouse = HardMouse(
-                report_id=mouse_data[0],
-                buttons=mouse_data[1],
-                x=mouse_data[2],
-                y=mouse_data[3],
-                wheel=mouse_data[4],
-                time_stamp=time.perf_counter(),
-            )
+        # Mouse Parse 8 bytes
+        # struct: report_id(1) + buttons(1) + x(2) + y(2) + wheel(2)
+        report_id, buttons, x, y, wheel = struct.unpack_from("<BBhhh", data, 0)
+        new_mouse = HardMouse(
+            report_id=report_id,
+            buttons=buttons,
+            x=x,
+            y=y,
+            wheel=wheel,
+            time_stamp=time.perf_counter(),
+        )
 
-            # keyboard parse 12 byte
-            if len(data) >= 20:  # 8(mouse) + 12(keyboard)
-                # struct: report_id(1) + buttons(1) + data[10](10)
-                keyboard_data = struct.unpack("<BB10B", data[8:20])
-                new_keyboard = HardKeyboard(
-                    report_id=keyboard_data[0],
-                    buttons=keyboard_data[1],
-                    data=list(keyboard_data[2:]),
-                )
-            elif len(data) >= 8:
-                print(f"Only mouse data available: {len(data)} bytes")
-                raise struct.error
+        # Keyboard parse 12 bytes
+        # struct: report_id(1) + buttons(1) + data[10](10)
+        k_report_id, k_buttons, *k_data = struct.unpack_from("<BB10B", data, 8)
+        new_keyboard = HardKeyboard(
+            report_id=k_report_id,
+            buttons=k_buttons,
+            data=list(k_data),
+        )
 
-            return new_mouse, new_keyboard
-        except struct.error as e:
-            print(f"Data parse error: {e}, data length: {len(data)}")
+        return new_mouse, new_keyboard
 
     @property
     def left(self) -> bool:

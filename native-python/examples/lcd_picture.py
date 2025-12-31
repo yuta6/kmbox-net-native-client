@@ -1,10 +1,3 @@
-"""Generated from `Gemini_Generated_Image_et640get640get64.png`.
-
-- Resized to fit inside 128x160 (letterboxed with black).
-- Converted to RGB565 little-endian.
-- Compressed with zlib, encoded with base64, and embedded below.
-"""
-
 import base64
 import zlib
 
