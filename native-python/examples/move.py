@@ -1,7 +1,7 @@
 import time
 
 from kmboxnet import KmboxNet
-from tests.ip_port_uuid import IP, PORT, UUID
+from examples.ip_port_uuid import IP, PORT, UUID
 
 mouse = KmboxNet(ip=IP, port=PORT, uuid=UUID)
 
@@ -14,3 +14,4 @@ while True:
     time.sleep(1)
     mouse.move(0, -150)
     time.sleep(1)
+
