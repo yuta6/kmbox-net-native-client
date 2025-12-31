@@ -1,6 +1,6 @@
 import time
 
-from kmboxnet import KmboxNet, HardMouse, HardKeyboard, Event
+from kmboxnet import Event, KmboxNet
 from tests.ip_port_uuid import IP, PORT, UUID
 
 mouse = KmboxNet(ip=IP, port=PORT, uuid=UUID, monitor_timeout=0.01)

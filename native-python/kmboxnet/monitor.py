@@ -75,7 +75,7 @@ class Monitor:
         if self.sock:
             try:
                 self.sock.close()
-            except:
+            except Exception:
                 pass
             self.sock = None
 
@@ -134,7 +134,7 @@ class Monitor:
             if self.sock:
                 try:
                     self.sock.close()
-                except:
+                except Exception:
                     pass
 
     def _build_mouse_and_keyboard_from_data(
