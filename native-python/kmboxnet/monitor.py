@@ -127,7 +127,7 @@ class Monitor:
             if self.sock:
                 try:
                     self.sock.close()
-                except:
+                except :
                     pass
 
     def _build_mouse_and_keyboard_from_data(self, data: bytes) -> tuple[HardMouse, HardKeyboard]:

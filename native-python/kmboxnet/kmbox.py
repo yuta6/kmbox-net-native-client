@@ -508,6 +508,7 @@ class KmboxNet:
         except Exception:
             print("KmboxNet, Failed to close!")
             pass
+
 class KmboxError(Exception):
     """KmboxNet related errors"""
     pass

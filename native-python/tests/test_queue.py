@@ -1,7 +1,7 @@
 import time
 
 from kmboxnet import KmboxNet , HardMouse, HardKeyboard , Event
-from ip_port_uuid import IP, PORT, UUID
+from tests.ip_port_uuid import IP, PORT, UUID
 
 mouse = KmboxNet(ip=IP, port=PORT, uuid=UUID, monitor_timeout=0.01)
 
@@ -13,3 +13,4 @@ while time.perf_counter()-current_time < 5.0:
     event: Event  = mouse.monitor.events.get()
     length = mouse.monitor.events.qsize()
     print(f"index :{index}, length :{length}, {event.mouse}, {event.keyboard}")
+
