@@ -1,3 +1,3 @@
-IP=""
-PORT=0
-UUID=""
+IP = ""
+PORT = 0
+UUID = ""

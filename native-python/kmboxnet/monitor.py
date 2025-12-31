@@ -6,6 +6,7 @@ import struct
 import queue
 import time
 
+
 @dataclass
 class HardMouse:
     report_id: int = 0
@@ -13,7 +14,8 @@ class HardMouse:
     x: int = 0
     y: int = 0
     wheel: int = 0
-    time_stamp : float = 0
+    time_stamp: float = 0
+
 
 @dataclass
 class HardKeyboard:
@@ -21,10 +23,12 @@ class HardKeyboard:
     buttons: int = 0
     data: list[int] = field(default_factory=lambda: [0] * 10)
 
+
 @dataclass
-class Event :
+class Event:
     mouse: HardMouse
     keyboard: HardKeyboard
+
 
 class Monitor:
     def __init__(self, port: int, monitor_timeout: Optional[float] = 0.003):
@@ -51,7 +55,7 @@ class Monitor:
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.settimeout(self.monitor_timeout)
-            self.sock.bind(('0.0.0.0', self.port))
+            self.sock.bind(("0.0.0.0", self.port))
 
             self.running = True
             self.thread = threading.Thread(target=self._listen_loop, daemon=True)
@@ -84,7 +88,9 @@ class Monitor:
             while self.running and self.sock:
                 try:
                     data, addr = self.sock.recvfrom(1024)
-                    new_mouse, new_keyboard = self._build_mouse_and_keyboard_from_data(data)
+                    new_mouse, new_keyboard = self._build_mouse_and_keyboard_from_data(
+                        data
+                    )
                     with self._lock:
                         self.events.put(Event(new_mouse, new_keyboard))
                         self.hard_mouse = new_mouse
@@ -102,9 +108,10 @@ class Monitor:
                             neutral_mouse = HardMouse(
                                 report_id=self.hard_mouse.report_id,
                                 buttons=self.hard_mouse.buttons,
-                                x=0, y=0,
+                                x=0,
+                                y=0,
                                 wheel=self.hard_mouse.wheel,
-                                time_stamp=time.perf_counter()
+                                time_stamp=time.perf_counter(),
                             )
                             current_keyboard = self.hard_keyboard
 
@@ -114,7 +121,7 @@ class Monitor:
 
                         self.is_neutral_event_sent = True
                         continue
-                    else :
+                    else:
                         continue
                 except Exception as e:
                     if self.running:
@@ -127,10 +134,12 @@ class Monitor:
             if self.sock:
                 try:
                     self.sock.close()
-                except :
+                except:
                     pass
 
-    def _build_mouse_and_keyboard_from_data(self, data: bytes) -> tuple[HardMouse, HardKeyboard]:
+    def _build_mouse_and_keyboard_from_data(
+        self, data: bytes
+    ) -> tuple[HardMouse, HardKeyboard]:
         try:
             if len(data) < 8:
                 print(f"Insufficient data for mouse: {len(data)} bytes")
@@ -145,7 +154,7 @@ class Monitor:
                 x=mouse_data[2],
                 y=mouse_data[3],
                 wheel=mouse_data[4],
-                time_stamp = time.perf_counter()
+                time_stamp=time.perf_counter(),
             )
 
             # keyboard parse 12 byte
@@ -155,7 +164,7 @@ class Monitor:
                 new_keyboard = HardKeyboard(
                     report_id=keyboard_data[0],
                     buttons=keyboard_data[1],
-                    data=list(keyboard_data[2:])
+                    data=list(keyboard_data[2:]),
                 )
             elif len(data) >= 8:
                 print(f"Only mouse data available: {len(data)} bytes")
@@ -212,6 +221,8 @@ class Monitor:
     def is_running(self) -> bool:
         return self.running
 
+
 class KmboxNetMonitorError(Exception):
     """Monitor related errors"""
+
     pass

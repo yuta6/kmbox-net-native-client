@@ -5,7 +5,6 @@ from tests.ip_port_uuid import IP, PORT, UUID
 
 mouse = KmboxNet(ip=IP, port=PORT, uuid=UUID)
 
-while True :
+while True:
     print(mouse.monitor.hard_mouse, mouse.monitor.hard_keyboard)
     time.sleep(0.001)
-

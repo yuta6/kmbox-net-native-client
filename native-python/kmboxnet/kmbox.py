@@ -8,24 +8,27 @@ import ipaddress
 
 from .monitor import Monitor
 
-CMD_CONNECT        = 0xaf3c2828
-CMD_MOUSE_MOVE     = 0xaede7345
-CMD_MOUSE_LEFT     = 0x9823ae8d
-CMD_MOUSE_MIDDLE   = 0x97a3ae8d
-CMD_MOUSE_RIGHT    = 0x238d8212
-CMD_MOUSE_WHEEL    = 0xffeead38
-CMD_MOUSE_AUTOMOVE = 0xaede7346
-CMD_KEYBOARD_ALL   = 0x123c2c2f
-CMD_REBOOT         = 0xaa8855aa
-CMD_BEZIER_MOVE    = 0xa238455a
+# fmt: off
+CMD_CONNECT        = 0xAF3C2828
+CMD_MOUSE_MOVE     = 0xAEDE7345
+CMD_MOUSE_LEFT     = 0x9823AE8D
+CMD_MOUSE_MIDDLE   = 0x97A3AE8D
+CMD_MOUSE_RIGHT    = 0x238D8212
+CMD_MOUSE_WHEEL    = 0xFFEEAD38
+CMD_MOUSE_AUTOMOVE = 0xAEDE7346
+CMD_KEYBOARD_ALL   = 0x123C2C2F
+CMD_REBOOT         = 0xAA8855AA
+CMD_BEZIER_MOVE    = 0xA238455A
 CMD_MONITOR        = 0x27388020
 CMD_DEBUG          = 0x27382021
 CMD_MASK_MOUSE     = 0x23234343
 CMD_UNMASK_ALL     = 0x23344343
-CMD_SETCONFIG      = 0x1d3d3323
-CMD_SETVIDPID      = 0xffed3232
+CMD_SETCONFIG      = 0x1D3D3323
+CMD_SETVIDPID      = 0xFFED3232
 CMD_SHOWPIC        = 0x12334883
-CMD_TRACE_ENABLE   = 0xbbcdddac
+CMD_TRACE_ENABLE   = 0xBBCDDDAC
+# fmt: on
+
 
 @dataclass
 class SoftMouse:
@@ -39,11 +42,12 @@ class SoftMouse:
         """Convert to struct payload"""
         return struct.pack("<14i", self.button, self.x, self.y, self.wheel, *self.point)
 
-    def reset_movement(self) :
+    def reset_movement(self):
         """Reset relative movement values"""
         self.x = 0
         self.y = 0
         self.wheel = 0
+
 
 @dataclass
 class SoftKeyboard:
@@ -55,10 +59,18 @@ class SoftKeyboard:
         """Convert to struct payload"""
         return struct.pack("<BB10B", self.ctrl, self.reserved, *self.button)
 
-class KmboxNet:
-    TIMEOUT= 2.0
 
-    def __init__(self, ip: str, port: int, uuid: str, monitor_port:int|None = 5002, monitor_timeout: Optional[float] = 0.003):
+class KmboxNet:
+    TIMEOUT = 2.0
+
+    def __init__(
+        self,
+        ip: str,
+        port: int,
+        uuid: str,
+        monitor_port: int | None = 5002,
+        monitor_timeout: Optional[float] = 0.003,
+    ):
         """
         Initialize KmboxNet connection.
 
@@ -77,7 +89,7 @@ class KmboxNet:
             mac_bytes = bytes.fromhex(uuid)
             if len(mac_bytes) != 4:
                 raise ValueError
-            self.mac = int.from_bytes(mac_bytes, byteorder='big')
+            self.mac = int.from_bytes(mac_bytes, byteorder="big")
         except ValueError:
             raise KmboxError("UUID is 8 degits.")
 
@@ -122,7 +134,9 @@ class KmboxNet:
             rand_override = random.randint(0, 0x7FFFFFFF)
         return struct.pack("<IIII", self.mac, rand_override, self._index, cmd)
 
-    def send_cmd(self, cmd: int, payload: bytes = b'', rand_override: int | None = None) -> tuple[bool, bytes]:
+    def send_cmd(
+        self, cmd: int, payload: bytes = b"", rand_override: int | None = None
+    ) -> tuple[bool, bytes]:
         """
         Send directly command to Kmbox device.
 
@@ -135,9 +149,9 @@ class KmboxNet:
             tuple[bool, bytes]: (Success status, Response data)
         """
         header = self._make_header(cmd, rand_override)
-        
+
         MAX_PACKET_SIZE = 1500  # keep safely at MTU of 1500
-        
+
         # If total packet fits in one send
         if len(header) + len(payload) <= MAX_PACKET_SIZE:
             packet = header + payload
@@ -146,20 +160,20 @@ class KmboxNet:
 
         # Else send in chunks
         for i in range(0, len(payload), MAX_PACKET_SIZE):
-            chunk_payload = payload[i:i + MAX_PACKET_SIZE]
+            chunk_payload = payload[i : i + MAX_PACKET_SIZE]
             packet = header + chunk_payload
             success, response = self._send_packet(packet)
             if not success:
-                return False, b''
-        return True, b''
+                return False, b""
+        return True, b""
 
     def _send_packet(self, packet: bytes) -> tuple[bool, bytes]:
         try:
             self._sock.sendto(packet, self._server_addr)
-            return True, b''
+            return True, b""
         except OSError as e:
             print(f"Send error: {e}")
-            return False, b''
+            return False, b""
 
     def move(self, x: int, y: int) -> bool:
         """
@@ -195,12 +209,16 @@ class KmboxNet:
         self._soft_mouse.x = x
         self._soft_mouse.y = y
 
-        result, _ = self.send_cmd(CMD_MOUSE_AUTOMOVE, self._soft_mouse.to_payload(), rand_override=ms)
+        result, _ = self.send_cmd(
+            CMD_MOUSE_AUTOMOVE, self._soft_mouse.to_payload(), rand_override=ms
+        )
 
         self._soft_mouse.reset_movement()
         return result
 
-    def move_bezier(self, x: int, y: int, ms: int, x1: int, y1: int, x2: int, y2: int) -> bool:
+    def move_bezier(
+        self, x: int, y: int, ms: int, x1: int, y1: int, x2: int, y2: int
+    ) -> bool:
         """
         Move mouse cursor using Bezier curve.
 
@@ -223,7 +241,9 @@ class KmboxNet:
         self._soft_mouse.point[2] = x2
         self._soft_mouse.point[3] = y2
 
-        result, _ = self.send_cmd(CMD_BEZIER_MOVE, self._soft_mouse.to_payload(), rand_override=ms)
+        result, _ = self.send_cmd(
+            CMD_BEZIER_MOVE, self._soft_mouse.to_payload(), rand_override=ms
+        )
 
         self._soft_mouse.reset_movement()
         return result
@@ -277,7 +297,7 @@ class KmboxNet:
         """Press key down"""
         if 0xE0 <= vk_key <= 0xE7:
             bit_pos = vk_key - 0xE0  # 0xE0→0, 0xE1→1, ..., 0xE7→7
-            self._soft_keyboard.ctrl |= (1 << bit_pos)
+            self._soft_keyboard.ctrl |= 1 << bit_pos
         else:
             for i in range(10):
                 if self._soft_keyboard.button[i] == vk_key:
@@ -384,7 +404,9 @@ class KmboxNet:
         else:
             for i in range(10):
                 if self._soft_keyboard.button[i] == vk_key:
-                    self._soft_keyboard.button[i:-1] = self._soft_keyboard.button[i+1:]
+                    self._soft_keyboard.button[i:-1] = self._soft_keyboard.button[
+                        i + 1 :
+                    ]
                     self._soft_keyboard.button[9] = 0
                     break
 
@@ -444,7 +466,9 @@ class KmboxNet:
             for y in range(40):
                 color_data = struct.pack("<512H", *([rgb565] * 512))
                 rand_value = 0 | (y * 4)
-                result, _ = self.send_cmd(CMD_SHOWPIC, color_data, rand_override=rand_value)
+                result, _ = self.send_cmd(
+                    CMD_SHOWPIC, color_data, rand_override=rand_value
+                )
                 if not result:
                     return False
             return True
@@ -458,9 +482,11 @@ class KmboxNet:
 
         try:
             for y in range(20):
-                row_data = image_data[y * 1024:(y + 1) * 1024]
+                row_data = image_data[y * 1024 : (y + 1) * 1024]
                 rand_value = 80 + (y * 4)
-                result, _ = self.send_cmd(CMD_SHOWPIC, row_data, rand_override=rand_value)
+                result, _ = self.send_cmd(
+                    CMD_SHOWPIC, row_data, rand_override=rand_value
+                )
                 if not result:
                     return False
             return True
@@ -473,11 +499,15 @@ class KmboxNet:
             raise ValueError("Image data must be 128x160x2 bytes (RGB565)")
 
         try:
-            for _ in range(3): # Repeat three times - UDP seems drop some packets occasionally, three writes fixes it.
+            for _ in range(
+                3
+            ):  # Repeat three times - UDP seems drop some packets occasionally, three writes fixes it.
                 for y in range(40):
-                    row_data = image_data[y * 1024:(y + 1) * 1024]
+                    row_data = image_data[y * 1024 : (y + 1) * 1024]
                     rand_value = y * 4
-                    result, _ = self.send_cmd(CMD_SHOWPIC, row_data, rand_override=rand_value)
+                    result, _ = self.send_cmd(
+                        CMD_SHOWPIC, row_data, rand_override=rand_value
+                    )
                     if not result:
                         return False
             return True
@@ -509,6 +539,8 @@ class KmboxNet:
             print("KmboxNet, Failed to close!")
             pass
 
+
 class KmboxError(Exception):
     """KmboxNet related errors"""
+
     pass

@@ -1,5 +1,6 @@
 from enum import IntEnum
 
+
 class HidKey(IntEnum):
     NONE = 0x00
     ERRORROLLOVER = 0x01
@@ -50,17 +51,17 @@ class HidKey(IntEnum):
     TAB = 0x2B
     SPACE = 0x2C
 
-    MINUS = 0x2D        # - _
-    EQUAL = 0x2E        # = +
-    LBRACKET = 0x2F     # [ {
-    RBRACKET = 0x30     # ] }
-    BACKSLASH = 0x31    # \ |
-    SEMICOLON = 0x33    # ; :
-    QUOTE = 0x34        # ' "
-    GRAVE = 0x35        # ` ~
-    COMMA = 0x36        # ,
-    PERIOD = 0x37       # . >
-    SLASH = 0x38        # / ?
+    MINUS = 0x2D  # - _
+    EQUAL = 0x2E  # = +
+    LBRACKET = 0x2F  # [ {
+    RBRACKET = 0x30  # ] }
+    BACKSLASH = 0x31  # \ |
+    SEMICOLON = 0x33  # ; :
+    QUOTE = 0x34  # ' "
+    GRAVE = 0x35  # ` ~
+    COMMA = 0x36  # ,
+    PERIOD = 0x37  # . >
+    SLASH = 0x38  # / ?
 
     CAPS_LOCK = 0x39
 
@@ -113,7 +114,7 @@ class HidKey(IntEnum):
     LEFT_CTRL = 0xE0
     LEFT_SHIFT = 0xE1
     LEFT_ALT = 0xE2
-    LEFT_GUI = 0xE3  
+    LEFT_GUI = 0xE3
     RIGHT_CTRL = 0xE4
     RIGHT_SHIFT = 0xE5
     RIGHT_ALT = 0xE6

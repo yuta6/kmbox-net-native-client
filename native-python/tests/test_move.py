@@ -5,13 +5,12 @@ from tests.ip_port_uuid import IP, PORT, UUID
 
 mouse = KmboxNet(ip=IP, port=PORT, uuid=UUID)
 
-while True :
-    mouse.move(150,0)
+while True:
+    mouse.move(150, 0)
     time.sleep(1)
-    mouse.move(0,150)
+    mouse.move(0, 150)
     time.sleep(1)
-    mouse.move(-150,0)
+    mouse.move(-150, 0)
     time.sleep(1)
-    mouse.move(0,-150)
+    mouse.move(0, -150)
     time.sleep(1)
-
