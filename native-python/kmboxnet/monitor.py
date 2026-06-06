@@ -30,6 +30,13 @@ class Event:
     keyboard: HardKeyboard
 
 
+# events queue の上限。 消費者が drain しないと無制限に溜まって HardMouse/Event が
+# リークする (= state polling だけする利用者でメモリが際限なく増える) ので上限を設ける。
+# drain する利用者 (event 駆動) は常にこの深さ未満なので影響を受けず、 drain しない利用者は
+# ここで頭打ちになる。 満杯時は最古を捨てる (= 最新の入力 stream を優先、 producer を block しない)。
+EVENTS_MAXSIZE = 8192
+
+
 class Monitor:
     def __init__(self, port: int, monitor_timeout: Optional[float] = 0.003):
         self.port = port
@@ -40,12 +47,31 @@ class Monitor:
         self.hard_mouse = HardMouse()
         self.hard_keyboard = HardKeyboard()
 
-        self.events = queue.Queue()
+        self.events = queue.Queue(maxsize=EVENTS_MAXSIZE)
 
         self.is_neutral_event_sent = False
         self.monitor_timeout = monitor_timeout
 
         self._lock = threading.Lock()
+
+    def _push_event(self, event: "Event") -> None:
+        """events queue へ drop-oldest で push する。
+
+        満杯 = 消費者が drain してない (= state polling だけ) なので、 producer (listen
+        スレッド) を block させずに最古を1件捨てて最新を入れる。 これにより drain しない
+        利用者でもメモリが EVENTS_MAXSIZE で頭打ちになる (= 無制限リーク防止)。
+        """
+        try:
+            self.events.put_nowait(event)
+        except queue.Full:
+            try:
+                self.events.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self.events.put_nowait(event)
+            except queue.Full:
+                pass
 
     def start(self):
         """monitor start"""
@@ -105,7 +131,7 @@ class Monitor:
 
                         self.hard_mouse = neutral_mouse
                         self.hard_keyboard = current_keyboard
-                        self.events.put(Event(neutral_mouse, current_keyboard))
+                        self._push_event(Event(neutral_mouse, current_keyboard))
 
                     self.is_neutral_event_sent = True
                     continue
@@ -122,7 +148,7 @@ class Monitor:
                     continue
 
                 with self._lock:
-                    self.events.put(Event(new_mouse, new_keyboard))
+                    self._push_event(Event(new_mouse, new_keyboard))
                     self.hard_mouse = new_mouse
                     self.hard_keyboard = new_keyboard
 
