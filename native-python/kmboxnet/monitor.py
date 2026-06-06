@@ -30,6 +30,14 @@ class Event:
     keyboard: HardKeyboard
 
 
+# Cap for the events queue. Without a bound it grows forever for consumers that
+# only poll the current state (.left/.right/...) and never drain events.get(),
+# leaking HardMouse/HardKeyboard/Event. Event-driven consumers stay well under
+# this depth and are unaffected; pollers are capped here. When full, the oldest
+# event is dropped (favor the newest input stream; never block the producer).
+EVENTS_MAXSIZE = 8192
+
+
 class Monitor:
     def __init__(self, port: int, monitor_timeout: Optional[float] = 0.003):
         self.port = port
@@ -40,12 +48,32 @@ class Monitor:
         self.hard_mouse = HardMouse()
         self.hard_keyboard = HardKeyboard()
 
-        self.events = queue.Queue()
+        self.events = queue.Queue(maxsize=EVENTS_MAXSIZE)
 
         self.is_neutral_event_sent = False
         self.monitor_timeout = monitor_timeout
 
         self._lock = threading.Lock()
+
+    def _push_event(self, event: "Event") -> None:
+        """Push to the events queue with drop-oldest semantics.
+
+        A full queue means the consumer is not draining it (state-polling only),
+        so rather than blocking the producer (the listen thread) we drop the
+        oldest event and enqueue the newest. This caps memory at EVENTS_MAXSIZE
+        even for consumers that never drain (no unbounded leak).
+        """
+        try:
+            self.events.put_nowait(event)
+        except queue.Full:
+            try:
+                self.events.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self.events.put_nowait(event)
+            except queue.Full:
+                pass
 
     def start(self):
         """monitor start"""
@@ -105,7 +133,7 @@ class Monitor:
 
                         self.hard_mouse = neutral_mouse
                         self.hard_keyboard = current_keyboard
-                        self.events.put(Event(neutral_mouse, current_keyboard))
+                        self._push_event(Event(neutral_mouse, current_keyboard))
 
                     self.is_neutral_event_sent = True
                     continue
@@ -122,7 +150,7 @@ class Monitor:
                     continue
 
                 with self._lock:
-                    self.events.put(Event(new_mouse, new_keyboard))
+                    self._push_event(Event(new_mouse, new_keyboard))
                     self.hard_mouse = new_mouse
                     self.hard_keyboard = new_keyboard
 
