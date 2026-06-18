@@ -1,0 +1,11 @@
+[package]
+name = "kmbox-net-client"
+version = "0.1.0"
+edition = "2024"
+description = "Native Rust client for KMBox Net hardware input device"
+license = "MIT"
+repository = "https://github.com/yuta6/kmbox-net-native-client"
+keywords = ["kmbox", "hid", "input", "hardware"]
+categories = ["hardware-support"]
+
+[dependencies]
